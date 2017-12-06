@@ -57,3 +57,8 @@ typings/
 # dotenv environment variables file
 .env
 
+.history
+.vscode
+config/test.toml
+config/development.toml
+dist
