@@ -1,5 +1,6 @@
 import { IResults } from 'influx';
 import * as assert from 'power-assert';
+import * as numeral from 'numeral';
 import * as moment from 'moment';
 
 import * as types from 'ns-types';
@@ -11,7 +12,8 @@ const Loki = require('lokijs');
 export interface IKdjOutput {
   [Attr: string]: any;
   side?: types.OrderSide;
-  time?: string;
+  lastTime?: string;
+  lastPrice?: number;
 }
 export class Signal {
 
@@ -43,7 +45,8 @@ export class Signal {
       const hisData = <types.Bar[]>await this.getCq5minData(symbol);
       const signal: IKdjOutput = Object.assign({}, SniperStrategy.execute('', hisData));
       if (hisData.length > 0 && hisData[hisData.length - 1]) {
-        signal.time = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+        signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+        signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
       }
       return signal;
     } else {
@@ -52,7 +55,8 @@ export class Signal {
       for (const hisData of hisDataList) {
         const signal: IKdjOutput = Object.assign({}, SniperStrategy.execute('', hisData));
         if (hisData.length > 0 && hisData[hisData.length - 1]) {
-          signal.time = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+          signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+          signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
         }
         signalList.push(signal);
       }

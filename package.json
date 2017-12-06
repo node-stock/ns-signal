@@ -1,6 +1,6 @@
 {
   "name": "ns-signal",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "node-stock signal module",
   "repository": {
     "type": "git",
@@ -21,12 +21,14 @@
     "ns-influxdb": "0.0.4",
     "ns-strategies": "0.0.12",
     "ns-types": "0.0.22",
+    "numeral": "^2.0.6",
     "toml": "^2.3.3"
   },
   "devDependencies": {
     "@types/config": "0.0.33",
     "@types/mocha": "^2.2.41",
     "@types/node": "^8.0.53",
+    "@types/numeral": "0.0.22",
     "@types/power-assert": "^1.4.29",
     "config": "^1.28.1",
     "cross-env": "^5.1.1",
