@@ -1,5 +1,6 @@
 import { IResults } from 'influx';
 import * as assert from 'power-assert';
+import * as moment from 'moment';
 
 import * as types from 'ns-types';
 import { InfluxDB, Param, Enums } from 'ns-influxdb';
@@ -7,6 +8,11 @@ import { SniperStrategy, SniperSignal } from 'ns-strategies';
 
 const Loki = require('lokijs');
 
+export interface IKdjOutput {
+  [Attr: string]: any;
+  side?: types.OrderSide;
+  time?: string;
+}
 export class Signal {
 
   backtest: {
@@ -35,13 +41,20 @@ export class Signal {
   async kdj(symbol: string | string[]) {
     if (typeof symbol === 'string' || symbol.length === 1) {
       const hisData = <types.Bar[]>await this.getCq5minData(symbol);
-      const signal: SniperSignal | null = SniperStrategy.execute('', hisData);
+      const signal: IKdjOutput = Object.assign({}, SniperStrategy.execute('', hisData));
+      if (hisData.length > 0 && hisData[hisData.length - 1]) {
+        signal.time = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+      }
       return signal;
     } else {
       const hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
       const signalList = [];
       for (const hisData of hisDataList) {
-        signalList.push(SniperStrategy.execute('', hisData));
+        const signal: IKdjOutput = Object.assign({}, SniperStrategy.execute('', hisData));
+        if (hisData.length > 0 && hisData[hisData.length - 1]) {
+          signal.time = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+        }
+        signalList.push(signal);
       }
       return signalList;
     }
@@ -122,7 +135,7 @@ export class Signal {
   getCq5minQuery = (symbol: string) => `
     select * from
       ${Enums.Measurement.Candlestick_5min} 
-    where time > now() - 36h and symbol = '${symbol}'
+    where time > now() - 12h and symbol = '${symbol}'
   `;
   async getCq5minData(symbol: string | string[]): Promise<types.Bar[] | types.Bar[][]> {
     if (typeof symbol === 'string' || symbol.length === 1) {

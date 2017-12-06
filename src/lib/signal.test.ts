@@ -20,6 +20,7 @@ const testGet5minData = async () => {
 
 const testKDJ = async () => {
   const res = await signal.kdj(['6664', '1357']);
+  console.log(res)
   assert(res);
 }
 
