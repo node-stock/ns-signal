@@ -9,9 +9,7 @@ import { SniperStrategy, SniperSignal } from 'ns-strategies';
 
 const Loki = require('lokijs');
 
-export interface IKdjOutput {
-  [Attr: string]: any;
-  side?: types.OrderSide;
+export interface IKdjOutput extends SniperSignal {
   lastTime?: string;
   lastPrice?: number;
 }
