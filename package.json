@@ -13,11 +13,12 @@
     "rm": "rimraf dist",
     "tsc": "npm run rm && tsc -p tsconfig.development.json",
     "tslint": "tslint --project ./tslint.json",
-    "test": "cross-env NODE_ENV=test mocha dist/**/*.test.js --timeout 5000 --require intelli-espower-loader",
+    "test": "cross-env NODE_ENV=test jest",
     "prepare": "npm run rm && tsc -p tsconfig.json"
   },
   "dependencies": {
     "lokijs": "^1.5.1",
+    "node-bitbankcc": "^1.0.1",
     "ns-influxdb": "0.0.4",
     "ns-strategies": "0.0.12",
     "ns-types": "0.0.22",
@@ -34,6 +35,7 @@
     "cross-env": "^5.1.1",
     "debug": "^3.1.0",
     "intelli-espower-loader": "^1.0.1",
+    "jest": "^21.2.1",
     "mocha": "^4.0.1",
     "power-assert": "^1.4.4",
     "rimraf": "^2.6.2",

@@ -8,6 +8,10 @@ import { InfluxDB, Param, Enums } from 'ns-influxdb';
 import { SniperStrategy, SniperSignal } from 'ns-strategies';
 
 const Loki = require('lokijs');
+const bitbank = require('node-bitbankcc');
+const pubApi = bitbank.publicApi();
+
+type OHLCV = [number, number, number, number, number];
 
 export interface IKdjOutput extends SniperSignal {
   lastTime?: string;
@@ -38,13 +42,38 @@ export class Signal {
     }
   }
 
-  async kdj(symbol: string | string[]) {
+  async kdj(symbol: string | string[], type: types.SymbolType) {
     if (typeof symbol === 'string' || symbol.length === 1) {
-      const hisData = <types.Bar[]>await this.getCq5minData(symbol);
-      const signal: IKdjOutput = Object.assign({}, SniperStrategy.execute('', hisData));
-      if (hisData.length > 0 && hisData[hisData.length - 1]) {
-        signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
-        signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
+      let signal;
+      if (type === types.SymbolType.stock) {
+        const hisData = <types.Bar[]>await this.getCq5minData(symbol);
+        signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', hisData));
+        if (hisData.length > 0 && hisData[hisData.length - 1]) {
+          signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+          signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
+        }
+      } else if (type === types.SymbolType.bitcoin) {
+        const date = new Date();
+        const dateStr = date.getFullYear() + '' + (date.getUTCMonth() + 1) + date.getUTCDate();
+        const data = await pubApi.getCandlestick(symbol, '5min', dateStr);
+
+        const ohlchList: OHLCV[] = data.candlestick[0].ohlcv;
+        const bars: types.Bar[] = [];
+        for (const ohlch of ohlchList) {
+          bars.push({
+            open: ohlch[0],
+            high: ohlch[1],
+            low: ohlch[2],
+            close: ohlch[3],
+            volume: ohlch[4],
+            time: ohlch[5]
+          });
+        }
+        signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', bars));
+        if (ohlchList.length > 0) {
+          signal.lastTime = moment(bars[bars.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+          signal.lastPrice = numeral(bars[bars.length - 1].close).value();
+        }
       }
       return signal;
     } else {
