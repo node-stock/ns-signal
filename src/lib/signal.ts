@@ -14,6 +14,7 @@ const pubApi = bitbank.publicApi();
 type OHLCV = [number, number, number, number, number];
 
 export interface IKdjOutput extends SniperSignal {
+  symbolType?: types.SymbolType
   lastTime?: string;
   lastPrice?: number;
 }
@@ -52,21 +53,21 @@ export class Signal {
       } else {
         throw new Error('未对应商品类型');
       }
-      return await this.executeKDJ(hisData);
+      return await this.executeKDJ(hisData, type);
     } else {
       let hisDataList: types.Bar[][];
       if (type === types.SymbolType.stock) {
         hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
         const signalList = [];
         for (const hisData of hisDataList) {
-          signalList.push(await this.executeKDJ(hisData));
+          signalList.push(await this.executeKDJ(hisData, type));
         }
         return signalList;
       } else if (type === types.SymbolType.cryptocoin) {
         const signalList = [];
         for (const sym of symbol) {
           const hisData = await this.getCoinHisData(<types.Pair>sym, timeUnit);
-          signalList.push(await this.executeKDJ(hisData));
+          signalList.push(await this.executeKDJ(hisData, type));
 
         }
         return signalList;
@@ -76,12 +77,13 @@ export class Signal {
     }
   }
 
-  private async executeKDJ(hisData: types.Bar[]) {
+  private async executeKDJ(hisData: types.Bar[], type: types.SymbolType) {
     const signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', hisData));
     if (hisData.length > 0 && hisData[hisData.length - 1]) {
       signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
       signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
     }
+    signal.symbolType = type;
     return signal;
   }
 
