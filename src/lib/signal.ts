@@ -68,7 +68,6 @@ export class Signal {
         for (const sym of symbol) {
           const hisData = await this.getCoinHisData(<types.Pair>sym, timeUnit);
           signalList.push(await this.executeKDJ(hisData, type));
-
         }
         return signalList;
       } else {
@@ -92,14 +91,16 @@ export class Signal {
     const ohlchList: OHLCV[] = data.candlestick[0].ohlcv;
     const bars: types.Bar[] = [];
     for (const ohlch of ohlchList) {
-      bars.push({
-        open: ohlch[0],
-        high: ohlch[1],
-        low: ohlch[2],
-        close: ohlch[3],
-        volume: ohlch[4],
-        time: ohlch[5]
-      });
+      if (ohlch[4]) {
+        bars.push({
+          open: ohlch[0],
+          high: ohlch[1],
+          low: ohlch[2],
+          close: ohlch[3],
+          volume: ohlch[4],
+          time: ohlch[5]
+        });
+      }
     }
     return bars;
   }
