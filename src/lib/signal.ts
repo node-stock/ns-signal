@@ -42,55 +42,65 @@ export class Signal {
     }
   }
 
-  async kdj(symbol: string | string[], type: types.SymbolType) {
+  async kdj(symbol: string | string[], type: types.SymbolType, timeUnit: types.CandlestickUnit) {
     if (typeof symbol === 'string' || symbol.length === 1) {
-      let signal;
+      let hisData: types.Bar[];
       if (type === types.SymbolType.stock) {
-        const hisData = <types.Bar[]>await this.getCq5minData(symbol);
-        signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', hisData));
-        if (hisData.length > 0 && hisData[hisData.length - 1]) {
-          signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
-          signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
-        }
-      } else if (type === types.SymbolType.bitcoin) {
-        const date = new Date();
-        const dateStr = date.getFullYear() + '' + (date.getUTCMonth() + 1) + date.getUTCDate();
-        const data = await pubApi.getCandlestick(symbol, '5min', dateStr);
-
-        const ohlchList: OHLCV[] = data.candlestick[0].ohlcv;
-        const bars: types.Bar[] = [];
-        for (const ohlch of ohlchList) {
-          bars.push({
-            open: ohlch[0],
-            high: ohlch[1],
-            low: ohlch[2],
-            close: ohlch[3],
-            volume: ohlch[4],
-            time: ohlch[5]
-          });
-        }
-        signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', bars));
-        if (ohlchList.length > 0) {
-          signal.lastTime = moment(bars[bars.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
-          signal.lastPrice = numeral(bars[bars.length - 1].close).value();
-        }
+        hisData = <types.Bar[]>await this.getCq5minData(symbol);
+      } else if (type === types.SymbolType.cryptocoin) {
+        hisData = await this.getCoinHisData(<types.Pair>symbol, timeUnit);
+      } else {
+        throw new Error('未对应商品类型');
       }
-      return signal;
+      return await this.executeKDJ(hisData);
     } else {
-      const hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
-      const signalList = [];
-      for (const hisData of hisDataList) {
-        const signal: IKdjOutput = Object.assign({}, SniperStrategy.execute('', hisData));
-        if (hisData.length > 0 && hisData[hisData.length - 1]) {
-          signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
-          signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
+      let hisDataList: types.Bar[][];
+      if (type === types.SymbolType.stock) {
+        hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
+        const signalList = [];
+        for (const hisData of hisDataList) {
+          signalList.push(await this.executeKDJ(hisData));
         }
-        signalList.push(signal);
+        return signalList;
+      } else if (type === types.SymbolType.cryptocoin) {
+        const signalList = [];
+        for (const sym of symbol) {
+          const hisData = await this.getCoinHisData(<types.Pair>sym, timeUnit);
+          signalList.push(await this.executeKDJ(hisData));
+
+        }
+        return signalList;
+      } else {
+        throw new Error('未对应商品类型');
       }
-      return signalList;
     }
   }
 
+  private async executeKDJ(hisData: types.Bar[]) {
+    const signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', hisData));
+    if (hisData.length > 0 && hisData[hisData.length - 1]) {
+      signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+      signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
+    }
+    return signal;
+  }
+
+  private async getCoinHisData(symbol: types.Pair, unit: types.CandlestickUnit) {
+    const data = await pubApi.getCandlestick(symbol, unit, moment.utc().format('YYYYMMDD'));
+    const ohlchList: OHLCV[] = data.candlestick[0].ohlcv;
+    const bars: types.Bar[] = [];
+    for (const ohlch of ohlchList) {
+      bars.push({
+        open: ohlch[0],
+        high: ohlch[1],
+        low: ohlch[2],
+        close: ohlch[3],
+        volume: ohlch[4],
+        time: ohlch[5]
+      });
+    }
+    return bars;
+  }
 
   async _getTest5minData(symbol: string): Promise<types.Bar[]> {
 

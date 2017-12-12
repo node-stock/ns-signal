@@ -1,4 +1,4 @@
-import { Signal } from './signal';
+import { Signal, IKdjOutput } from './signal';
 import * as assert from 'power-assert';
 import * as types from 'ns-types';
 
@@ -25,8 +25,13 @@ const testKDJ = async () => {
 }
 
 const testBitcoinKDJ = async () => {
-  const res = await signal.kdj('btc_jpy', types.SymbolType.bitcoin);
-  console.log(JSON.stringify(res, null, 2));
+  const symbolType = types.SymbolType.cryptocoin;
+  const min5 = types.CandlestickUnit.Min15;
+  const res = <IKdjOutput>await signal.kdj(types.Pair.BTC_JPY, symbolType, min5);
+  assert(res.lastPrice);
+  assert(res.lastTime);
+  const resList = <IKdjOutput[]>await signal.kdj([types.Pair.BTC_JPY, types.Pair.LTC_BTC], symbolType, min5);
+  assert(resList.length === 2);
 }
 
 describe('信号测试', () => {
