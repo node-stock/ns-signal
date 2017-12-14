@@ -92,7 +92,6 @@ export class Signal {
       signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
       signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
     }
-    signal. = type;
     return signal;
   }
 
