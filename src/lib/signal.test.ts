@@ -19,9 +19,11 @@ const testGet5minData = async () => {
 }
 
 const testKDJ = async () => {
-  /* const res = await signal.kdj(['6664', '1357']);
+  const symbolType = types.SymbolType.stock;
+  const min5 = types.CandlestickUnit.Min15;
+   const res = await signal.kdj(['6664', '1357'], symbolType, min5);
    console.log(res)
-   assert(res);*/
+   assert(res);
 }
 
 const testBitcoinKDJ = async () => {
@@ -36,6 +38,6 @@ const testBitcoinKDJ = async () => {
 
 describe('信号测试', () => {
   // it('获取5分钟数据', testGet5minData);
-  // it('测试KDJ', testKDJ);
-  it('测试比特币KDJ', testBitcoinKDJ);
+  it('测试KDJ', testKDJ);
+  // it('测试比特币KDJ', testBitcoinKDJ);
 });

@@ -35,7 +35,6 @@ export class Signal {
     assert(config.influxdb, 'config.influxdb required.');
     assert(config.backtest, 'config.backtest required.');
     assert(config.strategies, 'config.strategies required.');
-    assert(config.store, 'config.store required.');
     this.backtest = config.backtest;
     this.influxdb = new InfluxDB(config.influxdb);
     // 回测模式时，启动临时中间数据库
@@ -63,10 +62,10 @@ export class Signal {
       if (type === types.SymbolType.stock) {
         hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
         const signalList = [];
-        for (const hisData of hisDataList) {
+        for (const [index, hisData] of hisDataList.entries()) {
           signalList.push(<IKdjOutput>Object.assign(
             await this.executeKDJ(hisData),
-            { symbolType: type, symbol }
+            { symbolType: type, symbol: symbol[index] }
           ));
         }
         return signalList;
@@ -187,7 +186,7 @@ export class Signal {
 
   getCq5minQuery = (symbol: string) => `
     select * from
-      ${Enums.Measurement.Candlestick_5min} 
+      ${Enums.Measurement.Candlestick_5min}
     where time > now() - 12h and symbol = '${symbol}'
   `;
   async getCq5minData(symbol: string | string[]): Promise<types.Bar[] | types.Bar[][]> {
