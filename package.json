@@ -1,6 +1,6 @@
 {
   "name": "ns-signal",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "node-stock signal module",
   "repository": {
     "type": "git",
@@ -19,9 +19,9 @@
   "dependencies": {
     "lokijs": "^1.5.1",
     "node-bitbankcc": "^1.0.1",
-    "ns-influxdb": "0.0.8",
-    "ns-strategies": "0.0.21",
-    "ns-types": "0.0.28",
+    "ns-influxdb": "0.0.9",
+    "ns-strategies": "0.0.22",
+    "ns-types": "0.0.38",
     "numeral": "^2.0.6",
     "toml": "^2.3.3"
   },
