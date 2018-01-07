@@ -150,7 +150,9 @@ export class Signal {
     }
 
     let ohlchList = data.candlestick[0].ohlcv;
-    ohlchList = ohlchList.slice(ohlchList.length - 21, ohlchList.length - 1);
+    if (ohlchList.length > 20) {
+      ohlchList = ohlchList.slice(ohlchList.length - 21, ohlchList.length - 1);
+    }
     for (const ohlch of ohlchList) {
       if (ohlch[4]) {
         bars.push({
