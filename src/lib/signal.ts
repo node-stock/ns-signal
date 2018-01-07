@@ -2,25 +2,32 @@ import { IResults } from 'influx';
 import * as assert from 'power-assert';
 import * as numeral from 'numeral';
 import * as moment from 'moment';
+import { Log, Util } from 'ns-common';
 
 import * as types from 'ns-types';
 import { InfluxDB, Param, Enums } from 'ns-influxdb';
-import { SniperStrategy, SniperSignal } from 'ns-strategies';
+import { SniperStrategy, ISniperStrategy } from 'ns-strategies';
+import { BitbankPublicApiHandler, BitbankApiCandlestickType, BitbankApiCandlestick } from 'bitbank-handler';
 
 const Loki = require('lokijs');
-const bitbank = require('node-bitbankcc');
-const pubApi = bitbank.publicApi();
+const pubApi = new BitbankPublicApiHandler();
 
-type OHLCV = [number, number, number, number, number];
+export { ISniperStrategy };
 
-export interface IKdjOutput extends SniperSignal {
+export interface IKdjSignal {
   symbol: string;
-  symbolType?: types.SymbolType;
-  lastTime?: string;
-  lastPrice?: number;
+  symbolType: types.SymbolType;
+  results: IKdjOutput[]
 }
-export class Signal {
 
+export interface IKdjOutput {
+  timeframe: types.CandlestickUnit;
+  lastTime?: string;
+  lastPrice?: string;
+  strategy?: ISniperStrategy
+}
+
+export class Signal {
   backtest: {
     test: boolean,
     isLastDate: string,
@@ -43,69 +50,115 @@ export class Signal {
     }
   }
 
-  async kdj(symbol: string | string[], type: types.SymbolType, timeUnit: types.CandlestickUnit) {
+  async kdj(symbol: string | string[], type: types.SymbolType, timeUnits: types.CandlestickUnit[]): Promise<IKdjSignal[]> {
+    const kdjSignals: IKdjSignal[] = [];
+    // 查询单个商品
     if (typeof symbol === 'string' || symbol.length === 1) {
-      let hisData: types.Bar[];
-      if (type === types.SymbolType.stock) {
-        hisData = <types.Bar[]>await this.getCq5minData(symbol);
-      } else if (type === types.SymbolType.cryptocoin) {
-        hisData = await this.getCoinHisData(<types.Pair>symbol, timeUnit);
-      } else {
-        throw new Error('未对应商品类型');
-      }
-      return <IKdjOutput>Object.assign(
-        await this.executeKDJ(hisData),
-        { symbolType: type, symbol }
-      );
-    } else {
-      let hisDataList: types.Bar[][];
-      if (type === types.SymbolType.stock) {
-        hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
-        const signalList = [];
-        for (const [index, hisData] of hisDataList.entries()) {
-          signalList.push(<IKdjOutput>Object.assign(
-            await this.executeKDJ(hisData),
-            { symbolType: type, symbol: symbol[index] }
-          ));
+      const kdjSignal: IKdjSignal = {
+        symbol: typeof symbol === 'string' ? symbol : symbol[0],
+        symbolType: type,
+        results: []
+      };
+      for (const timeUnit of timeUnits) {
+        let hisData: types.Bar[];
+        if (type === types.SymbolType.stock) {
+          hisData = <types.Bar[]>await this.getCq5minData(symbol);
+        } else if (type === types.SymbolType.cryptocoin) {
+          hisData = await this.getCoinHisData(<types.Pair>symbol, timeUnit);
+        } else {
+          throw new Error('未对应商品类型');
         }
-        return signalList;
+
+        const kdjOutput = await this.executeKDJ(hisData, timeUnit);
+        kdjSignal.results.push(kdjOutput);
+      }
+      kdjSignals.push(kdjSignal);
+    } else { // 查询多条商品
+      if (type === types.SymbolType.stock) {
+        const hisDataList = <types.Bar[][]>await this.getCq5minData(symbol);
+        for (const [index, hisData] of hisDataList.entries()) {
+          const kdjSignal: IKdjSignal = {
+            symbol: symbol[index],
+            symbolType: type,
+            results: []
+          };
+          for (const timeUnit of timeUnits) {
+            const kdjOutput = await this.executeKDJ(hisData, timeUnit);
+            kdjSignal.results.push(kdjOutput);
+          }
+          kdjSignals.push(kdjSignal);
+        }
       } else if (type === types.SymbolType.cryptocoin) {
         const signalList = [];
         for (const sym of symbol) {
-          const hisData = await this.getCoinHisData(<types.Pair>sym, timeUnit);
-          signalList.push(<IKdjOutput>Object.assign(
-            await this.executeKDJ(hisData),
-            { symbolType: type, symbol: sym }
-          ));
+          const kdjSignal: IKdjSignal = {
+            symbol: sym,
+            symbolType: type,
+            results: []
+          };
+          for (const timeUnit of timeUnits) {
+            const hisData = await this.getCoinHisData(<types.Pair>sym, timeUnit);
+            const kdjOutput = await this.executeKDJ(hisData, timeUnit);
+            kdjSignal.results.push(kdjOutput);
+          }
+          kdjSignals.push(kdjSignal);
         }
-        return signalList;
       } else {
         throw new Error('未对应商品类型');
       }
     }
+    return kdjSignals;
   }
 
-  private async executeKDJ(hisData: types.Bar[]) {
-    const signal = <IKdjOutput>Object.assign({}, SniperStrategy.execute('', hisData));
-    if (hisData.length > 0 && hisData[hisData.length - 1]) {
-      signal.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
-      signal.lastPrice = numeral(hisData[hisData.length - 1].close).value();
+  private async executeKDJ(hisData: types.Bar[], timeUnit: types.CandlestickUnit) {
+    const strategy = SniperStrategy.execute(hisData);
+    const kdjOutput: IKdjOutput = {
+      timeframe: timeUnit,
+      strategy
     }
-    return signal;
+    if (hisData.length > 0 && hisData[hisData.length - 1]) {
+      kdjOutput.lastTime = moment(hisData[hisData.length - 1].time).format('YYYY-MM-DD HH:mm:ss');
+      kdjOutput.lastPrice = String(hisData[hisData.length - 1].close);
+    }
+    return kdjOutput;
   }
 
   private async getCoinHisData(symbol: types.Pair, unit: types.CandlestickUnit) {
-    const data = await pubApi.getCandlestick(symbol, unit, moment.utc().format('YYYYMMDD'));
-    const ohlchList: OHLCV[] = data.candlestick[0].ohlcv;
     const bars: types.Bar[] = [];
+    let data: BitbankApiCandlestick = {
+      candlestick: []
+    };
+    switch (unit) {
+      case types.CandlestickUnit.Min1:
+      case types.CandlestickUnit.Min5:
+      case types.CandlestickUnit.Min15:
+      case types.CandlestickUnit.Min30:
+      case types.CandlestickUnit.Hour1:
+        data = await pubApi.getCandlestick(symbol, unit, moment.utc().format('YYYYMMDD')).toPromise();
+        break;
+      case types.CandlestickUnit.Hour4:
+      case types.CandlestickUnit.Hour8:
+      case types.CandlestickUnit.Hour12:
+      case types.CandlestickUnit.Day1:
+      case types.CandlestickUnit.Week1:
+        data = await pubApi.getCandlestick(symbol, unit, moment.utc().format('YYYY')).toPromise();
+        break;
+    }
+    if (data.candlestick.length === 0) {
+      Log.system.error('未找到candlestick数据!')
+      return bars;
+    }
+
+    let ohlchList = data.candlestick[0].ohlcv;
+    ohlchList = ohlchList.slice(ohlchList.length - 21, ohlchList.length - 1);
     for (const ohlch of ohlchList) {
       if (ohlch[4]) {
         bars.push({
-          open: ohlch[0],
-          high: ohlch[1],
-          low: ohlch[2],
-          close: ohlch[3],
-          volume: ohlch[4],
+          open: Number(ohlch[0]),
+          high: Number(ohlch[1]),
+          low: Number(ohlch[2]),
+          close: Number(ohlch[3]),
+          volume: Number(ohlch[4]),
           time: ohlch[5]
         });
       }
